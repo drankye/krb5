@@ -2,7 +2,7 @@ mydir=lib$(S)jwttoken
 BUILDTOP=$(REL)..$(S)..
 LOCALINCLUDES= -I.
 
-LIBBASE=jwttoken
+LIBBASE=jwt_token
 LIBMAJOR=1
 LIBMINOR=0
 RELDIR=jwttoken

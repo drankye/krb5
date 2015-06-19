@@ -249,6 +249,7 @@ testlog
 /src/slave/kpropd
 /src/slave/kproplog
 
+/src/tests/adata
 /src/tests/gcred
 /src/tests/hist
 /src/tests/hrealm
@@ -288,6 +289,7 @@ testlog
 /src/tests/gssapi/ccrefresh
 /src/tests/gssapi/t_accname
 /src/tests/gssapi/t_ccselect
+/src/tests/gssapi/t_ciflags
 /src/tests/gssapi/t_credstore
 /src/tests/gssapi/t_export_cred
 /src/tests/gssapi/t_export_name
@@ -381,3 +383,40 @@ testlog
 /src/util/support/t_unal
 
 /src/util/verto/rename.h
+
+
+# IDE
+*.iml
+*.ipr
+*.iws
+
+java/nimbus-jose-jwt
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+java/token/target/
+java/run/lib/
+java/token/.idea
+java/run.bak
