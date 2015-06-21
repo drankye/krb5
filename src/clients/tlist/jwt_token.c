@@ -188,6 +188,12 @@ jwt_token_decode(char *token, jwt_token **out)
     *out = token_out;
 
     principal = jwt_token_header_attr(token_out, "krbPrincipal");
+    if (principal == NULL) {
+    	principal = jwt_token_header_attr(token_out, "user_name");
+    	if (principal == NULL) {
+    		principal = jwt_token_header_attr(token_out, "username");
+    	}
+    }
     printf("krbPrincipal: %s\n", principal);
 
     return 0;

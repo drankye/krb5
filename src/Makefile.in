@@ -18,6 +18,7 @@ SUBDIRS=util include lib \
 	plugins/pwqual/test \
 	plugins/kdb/db2 \
 	@ldap_plugin_dir@ \
+	plugins/preauth/jwt \
 	plugins/preauth/otp \
 	plugins/preauth/pkinit \
 	plugins/tls/k5tls \
@@ -155,7 +156,7 @@ WINMAKEFILES=Makefile \
 	ccapi\server\win\Makefile \
 	ccapi\test\Makefile \
 	clients\Makefile clients\kdestroy\Makefile \
-	clients\kinit\Makefile clients\klist\Makefile \
+	clients\kinit\Makefile clients\klist\Makefile clients\tlist\Makefile \
 	clients\kpasswd\Makefile clients\kvno\Makefile \
 	clients\kcpytkt\Makefile clients\kdeltkt\Makefile \
 	clients\kswitch\Makefile \

@@ -15,7 +15,7 @@ SRCS = tlist.c jwt_token.c
 ##WIN32##$(EXERES): $(VERSIONRC)
 ##WIN32##        $(RC) $(RCFLAGS) -DTLIST_APP -fo $@ -r $**
 
-all-unix:: tlist
+all-unix:: tlist ktinit
 ##WIN32##all-windows:: $(TLIST)
 
 tlist: tlist.o jwt_token.o $(KRB5_BASE_DEPLIBS)
@@ -29,7 +29,7 @@ clean-unix::
 	$(RM) tlist.o jwt_token.o tlist
 
 install-unix::
-	for f in tlist; do \
+	for f in tlist ktinit; do \
 	  $(INSTALL_PROGRAM) $$f \
 		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
 	done
