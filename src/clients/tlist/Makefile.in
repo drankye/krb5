@@ -3,7 +3,7 @@ BUILDTOP=$(REL)..$(S)..
 
 ##WIN32##LOCALINCLUDES=-I$(BUILDTOP)\util\windows\
 
-SRCS = tlist.c
+SRCS = tlist.c jwt_token.c
 
 ##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
 ##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
@@ -18,15 +18,15 @@ SRCS = tlist.c
 all-unix:: tlist
 ##WIN32##all-windows:: $(TLIST)
 
-tlist: tlist.o $(KRB5_BASE_DEPLIBS)
-	$(CC_LINK) -o $@ tlist.o $(KRB5_BASE_LIBS) $(TOPLIBD)/jwttoken$(SHLIBEXT)
+tlist: tlist.o jwt_token.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ tlist.o jwt_token.o $(KRB5_BASE_LIBS)
 
 ##WIN32##$(TLIST): $(OUTPRE)tlist.obj $(BUILDTOP)\util\windows\$(OUTPRE)getopt.lib $(SLIB) $(KLIB) $(CLIB) $(EXERES)
 ##WIN32##	link $(EXE_LINKOPTS) -out:$@ $** ws2_32.lib $(SCLIB)
 ##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
 
 clean-unix::
-	$(RM) tlist.o tlist
+	$(RM) tlist.o jwt_token.o tlist
 
 install-unix::
 	for f in tlist; do \

@@ -2,7 +2,7 @@ mydir=lib$(S)jwttoken
 BUILDTOP=$(REL)..$(S)..
 LOCALINCLUDES= -I.
 
-LIBBASE=jwt_token
+LIBBASE=jwttoken
 LIBMAJOR=1
 LIBMINOR=0
 RELDIR=jwttoken
@@ -18,7 +18,7 @@ STLIBOBJS= \
 	jwt_token.o
 
 all-unix:: all-liblinks
-install-unix:: install-libs
+install-unix:: 
 clean-unix:: clean-liblinks clean-libs clean-libobjs
 
 clean::

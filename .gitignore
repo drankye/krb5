@@ -1,3 +1,5 @@
+src/.cproject
+src/.project
 *~
 *.a
 *.dylib

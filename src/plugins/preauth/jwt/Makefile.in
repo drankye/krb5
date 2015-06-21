@@ -7,16 +7,17 @@ LIBMAJOR=0
 LIBMINOR=0
 RELDIR=../plugins/preauth/jwt
 # Depends on libk5crypto and libkrb5
-SHLIB_EXPDEPS = $(KRB5_BASE_DEPLIBS) $(SUPPORT_LIB) $(TOPLIBD)/jwttoken$(SHLIBEXT)
+SHLIB_EXPDEPS = $(KRB5_BASE_DEPLIBS) $(SUPPORT_LIB)
 
 
 SHLIB_EXPLIBS= $(KRB5_BASE_LIBS)
 
 STLIBOBJS= \
 	jwt_srv.o \
-	jwt_clnt.o
+	jwt_clnt.o \
+	jwt_token.o 
 
-SRCS= $(srcdir)/jwt_srv.c $(srcdir)/jwt_clnt.c
+SRCS= $(srcdir)/jwt_srv.c $(srcdir)/jwt_clnt.c $(srcdir)/jwt_token.c
 
 all-unix:: all-liblinks
 install-unix:: install-libs
