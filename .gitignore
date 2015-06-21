@@ -4,6 +4,7 @@ src/.project
 *.a
 *.dylib
 *.o
+t_*
 *.pc
 *.pyc
 *.so
