@@ -74,6 +74,7 @@ main(argc, argv)
 {
     char *token = NULL;
     jwt_token *out_token;
+    int ret;
 
     setlocale(LC_ALL, "");
     progname = GET_PROGNAME(argv[0]);
@@ -84,7 +85,7 @@ main(argc, argv)
         usage();
     }
 
-    jwt_token_decode(token, &out_token);
-
-    return 0;
+    ret = jwt_token_decode(token, &out_token);
+    
+    return ret;
 }

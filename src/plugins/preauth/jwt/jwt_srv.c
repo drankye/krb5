@@ -69,10 +69,16 @@ token_verify(krb5_context ctx, krb5_keyblock *armor_key,
              krb5_data *token, const char *config)
 {
     krb5_error_code retval = 0;
+    jwt_token *out_token;
 
     if (armor_key == NULL || token == NULL) {
         retval = EINVAL;
     }
+
+    retval = jwt_token_decode(token, &out_token);
+	if (retval != 0) {
+		retval = EINVAL;
+	}
 
 	// todo: very the token according to the spec
 

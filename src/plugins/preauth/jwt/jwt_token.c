@@ -173,27 +173,34 @@ jwt_token_decode(char *token, jwt_token **out)
     size_t len_out = 0;
 
     *out = NULL;
-    //printf("Hello, jwt token: %s\n", token);
 
     p = strchr(token, '.');
+    if (p == NULL) {
+        return 1;
+    }
     *p = 0;    
-    //printf("token header: %s\n", token);
 
     base64decoded = (char*)base64url_decode((const char*)token, &len_out);
-    //printf("token header base64 decoded: %s\n", base64decoded);
 
     token_out = (jwt_token*)calloc(1, sizeof(*token_out));
     k5_json_decode(base64decoded, &token_out->header);
-
     *out = token_out;
+    if (token_out == NULL) {
+        return 1;
+    }
 
     principal = jwt_token_header_attr(token_out, "krbPrincipal");
     if (principal == NULL) {
     	principal = jwt_token_header_attr(token_out, "user_name");
     	if (principal == NULL) {
-    		principal = jwt_token_header_attr(token_out, "username");
+    	    principal = jwt_token_header_attr(token_out, "username");
     	}
     }
+    if (principal == NULL) {
+        printf("Invalid token, unknown kr5 principal or user name\n");
+        return 1;
+    }
+
     printf("krbPrincipal: %s\n", principal);
 
     return 0;

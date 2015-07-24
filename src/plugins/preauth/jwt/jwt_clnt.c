@@ -34,6 +34,7 @@
 
 #include <krb5/clpreauth_plugin.h>
 #include <ctype.h>
+#include <jwt_token.h>
 
 static krb5_preauthtype jwt_client_supported_pa_types[] =
     { KRB5_PADATA_JWT_CHALLENGE, 0 };
@@ -240,12 +241,24 @@ handle_gic_opt(krb5_context context,
                jwt_context *jwtctx,
                const char *attr,
                const char *value)
-{    
+{
+    char *token = NULL;
+    jwt_token *out_token;
+    int ret = 0;
+
     if (strcmp(attr, "token") == 0) {
-        jwtctx->token = strdup(value);
-        jwtctx->vendor = strdup("jwt");
+    	token = strdup(value);
+        ret = jwt_token_decode(token, &out_token);
+    	if (ret == 0) {
+            jwtctx->token = token;
+            jwtctx->vendor = strdup("jwt");
+    	} else {
+            jwtctx->token = NULL;
+            jwtctx->vendor = NULL;
+    	}
     }
-    return 0;
+
+    return ret;
 }
 
 static krb5_error_code
@@ -258,8 +271,9 @@ jwt_client_gic_opt(krb5_context context, krb5_clpreauth_moddata moddata,
     jwt_context *jwtctx = (jwt_context*)moddata;
 
     retval = handle_gic_opt(context, jwtctx, attr, value);
-    if (retval)
+    if (retval) {
         return retval;
+    }
 
     return 0;
 }

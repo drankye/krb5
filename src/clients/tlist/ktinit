@@ -11,7 +11,17 @@ function tinit() {
     token="$1"
     result_cc="$2"
 
-    principal=`tlist $token | awk -F: '{print $2}'`
+    tempOutput=`tlist $token`
+    if [ $? -ne 0 ]; then
+        echo "Failed to decode the token"
+        echo $tempOutput
+        exit 1
+    fi
+    principal=`echo $tempOutput | awk -F: '{print $2}'`
+    if [ X"$principal" = X ]; then
+        echo "Invalid token!"
+        exit 1
+    fi
     echo "Will kinit with token for $principal"
 
     armor_cc=/tmp/krb5cc_armor.$$
@@ -26,7 +36,7 @@ function tinit() {
 	cc_opt="-c $result_cc"
     fi
 
-    /usr/local/bin/kinit -T $armor_cc $cc_opt -X token=$token $principal
+    kinit -T $armor_cc $cc_opt -X token=$token $principal
     if [ $? -ne 0 ]; then
         echo "Failed to obtain tgt ticket with token"
         rm -rf $armor_cc
