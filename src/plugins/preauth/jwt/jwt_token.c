@@ -119,7 +119,7 @@ jwt_token_body_attr(jwt_token *token, const char *name)
 {
     k5_json_value jvalue;
 
-    jvalue = k5_json_object_get(token->header, name);
+    jvalue = k5_json_object_get(token->body, name);
 
     return json_value_to_str(jvalue);
 }
@@ -167,7 +167,7 @@ base64url_decode(const char *str, size_t *len_out)
 int
 jwt_token_decode(char *token, jwt_token **out)
 {
-    char *p, *base64decoded, *principal;
+    char *p, *part1, *part2, *header, *body, *principal;
     k5_json_value jvalue;
     jwt_token *token_out;
     size_t len_out = 0;
@@ -178,16 +178,24 @@ jwt_token_decode(char *token, jwt_token **out)
     if (p == NULL) {
         return 1;
     }
-    *p = 0;    
+    *p++ = 0;
+    if (p == NULL) {
+        return 1;
+    }    
+    part1 = token;
+    part2 = p;
+    p = strchr(part2, '.');
+    if (p != NULL) {
+        *p++ = 0;
+    }
 
-    base64decoded = (char*)base64url_decode((const char*)token, &len_out);
+    header = (char*)base64url_decode((const char*)part1, &len_out);
+    body = (char*)base64url_decode((const char*)part2, &len_out);
 
     token_out = (jwt_token*)calloc(1, sizeof(*token_out));
-    k5_json_decode(base64decoded, &token_out->header);
+    k5_json_decode(header, &token_out->header);
+    k5_json_decode(body, &token_out->body);
     *out = token_out;
-    if (token_out == NULL) {
-        return 1;
-    }
 
     principal = jwt_token_header_attr(token_out, "krbPrincipal");
     if (principal == NULL) {
@@ -196,6 +204,17 @@ jwt_token_decode(char *token, jwt_token **out)
     	    principal = jwt_token_header_attr(token_out, "username");
     	}
     }
+
+    if (principal == NULL) {
+        principal = jwt_token_body_attr(token_out, "krbPrincipal");
+        if (principal == NULL) {
+    	    principal = jwt_token_body_attr(token_out, "user_name");
+    	    if (principal == NULL) {
+    	        principal = jwt_token_body_attr(token_out, "username");
+    	    }
+        }
+    }
+
     if (principal == NULL) {
         printf("Invalid token, unknown kr5 principal or user name\n");
         return 1;
