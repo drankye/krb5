@@ -245,3 +245,89 @@ jwt_token_decode(char *token, jwt_token **out)
     return 0;
 }
 
+int
+jwt_token_decode_and_check(char *token, const char * user_name)
+{
+    char *p, *part1, *part2, *header, *header_t, *body, *body_t, *principal;
+    k5_json_value jvalue;
+    jwt_token *token_out;
+    size_t len_out = 0;
+    int retval = 0;
+    int x = 0;
+ 
+    p = strchr(token, '.');
+    if (p == NULL) {
+        return 1;
+    }
+    *p++ = 0;
+    if (p == NULL) {
+        return 1;
+    }
+    part1 = token;
+    part2 = p;
+    p = strchr(part2, '.');
+    if (p != NULL) {
+        *p++ = 0;
+    }
+
+    header = (char*)base64url_decode((const char*)part1, &len_out);
+    header_t = (char *)malloc(len_out);
+    strncpy(header_t, header, len_out);
+    header_t[len_out] = '\0';
+    free(header);
+    body = (char*)base64url_decode((const char*)part2, &len_out);
+    body_t = (char *)malloc(len_out);
+    strncpy(body_t, body, len_out);
+    body_t[len_out] = '\0';
+    free(body);
+
+    token_out = (jwt_token*)calloc(1, sizeof(*token_out));
+    k5_json_decode(header_t, &token_out->header);
+    k5_json_decode(body_t, &token_out->body);
+
+    free(header_t);
+    free(body_t);
+
+    principal = jwt_token_header_attr(token_out, "krbPrincipal");
+    if (principal == NULL) {
+        principal = jwt_token_header_attr(token_out, "user_name");
+        if (principal == NULL) {
+            principal = jwt_token_header_attr(token_out, "username");
+        }
+    }
+    if (principal == NULL) {
+        principal = jwt_token_body_attr(token_out, "krbPrincipal");
+        if (principal == NULL) {
+            principal = jwt_token_body_attr(token_out, "user_name");
+            if (principal == NULL) {
+                principal = jwt_token_body_attr(token_out, "username");
+            }
+        }
+    }
+    if (principal == NULL) {
+        printf("Invalid token, unknown kr5 principal or user name\n");
+        return 1;
+    }
+
+    // replace @ to _
+    for(x=0; x<strlen(principal); x++) {
+      if(principal[x]=='@')
+        principal[x] = '_';
+    }
+
+    if(strlen(principal) != strlen(user_name))
+      retval = 1;
+    else{
+      for(x=0;x<strlen(principal);x++){
+        if(principal[x]!=user_name[x]){
+          retval = 1;
+          break;
+        }
+      }
+    }
+
+    jwt_token_destroy(token_out);
+
+    return retval;
+}
+
