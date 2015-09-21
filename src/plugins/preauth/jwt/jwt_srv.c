@@ -75,14 +75,15 @@ token_verify(krb5_context ctx, krb5_keyblock *armor_key,
         retval = EINVAL;
     }
 
-    retval = jwt_token_decode(token, &out_token);
-	if (retval != 0) {
-		retval = EINVAL;
-	}
+    // It is bugged
+    retval = jwt_token_decode(token->data, &out_token);
+    if (retval != 0) {
+      retval = EINVAL;
+    }
 
-	// todo: very the token according to the spec
+    // todo: very the token according to the spec
 
-	return retval;
+    return retval;
 }
 
 static krb5_error_code

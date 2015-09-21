@@ -107,7 +107,7 @@ make_request(krb5_context ctx, jwt_context *jwtctx, krb5_pa_jwt_req **out_req)
         goto error;
     
     req->token.data = strdup(jwtctx->token);
-    req->token.length = strlen(jwtctx->token);
+    req->token.length = strlen(jwtctx->token) + 1;
 
     *out_req = req;
     return 0;
@@ -250,12 +250,13 @@ handle_gic_opt(krb5_context context,
     	token = strdup(value);
         ret = jwt_token_decode(token, &out_token);
     	if (ret == 0) {
-            jwtctx->token = token;
+            jwtctx->token = strdup(value);
             jwtctx->vendor = strdup("jwt");
     	} else {
             jwtctx->token = NULL;
             jwtctx->vendor = NULL;
     	}
+        free(token);
     }
 
     return ret;
