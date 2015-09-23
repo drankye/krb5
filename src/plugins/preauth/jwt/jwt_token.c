@@ -306,9 +306,11 @@ jwt_token_decode_and_check(char *token, const char * user_name)
     }
     if (principal == NULL) {
         printf("Invalid token, unknown kr5 principal or user name\n");
-        return 1;
+        retval = 1;
+        com_err("jwt_err", 0, "Cannot find principal username");
+        goto clean;
     }
-
+    
     // replace @ to _
     for(x=0; x<strlen(principal); x++) {
       if(principal[x]=='@')
@@ -321,11 +323,13 @@ jwt_token_decode_and_check(char *token, const char * user_name)
       for(x=0;x<strlen(principal);x++){
         if(principal[x]!=user_name[x]){
           retval = 1;
-          break;
+          com_err("jwt_compare", 0, "Compare names failed");
+          goto clean;
         }
       }
     }
 
+clean:
     jwt_token_destroy(token_out);
 
     return retval;
