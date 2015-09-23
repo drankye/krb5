@@ -66,7 +66,7 @@ kdc_context_new(krb5_context ctx, jwt_kdc_context **out)
 
 static krb5_error_code
 token_verify(krb5_context ctx, krb5_keyblock *armor_key,
-             krb5_data *token, const char *config, const char *user_name)
+             krb5_data *token, const char *config, const char *user_name, krb5_timestamp *endtime)
 {
     krb5_error_code retval = 0;
     jwt_token *out_token;
@@ -76,7 +76,7 @@ token_verify(krb5_context ctx, krb5_keyblock *armor_key,
     }
 
 
-    retval = jwt_token_decode_and_check(token->data, user_name);
+    retval = jwt_token_decode_and_check(token->data, user_name, endtime);
     if (retval != 0) {
       retval = EINVAL;
     }
@@ -212,6 +212,7 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     krb5_data d;
     krb5_authdata **authz_container = NULL;
     krb5_data *ad_if_relevant;
+    krb5_timestamp endtime;
     char *user_name;
     //char *config;
 
@@ -244,7 +245,7 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     strncpy(user_name, request->client->data->data, request->client->data->length);
     user_name[request->client->data->length] = '\0';
 	/* Verify the token. */
-    retval = token_verify(context, armor_key, &req->token, NULL, user_name);
+    retval = token_verify(context, armor_key, &req->token, NULL, user_name, &endtime);
     free(user_name);
     if (retval != 0) {
         com_err("jwt", retval, "Unable to verify the token");
@@ -278,6 +279,8 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
 
     /* Note that preauthentication succeeded. */
     enc_tkt_reply->flags |= TKT_FLG_PRE_AUTH;
+
+    //enc_tkt_reply->times.endtime = endtime;
 
     (*respond)(arg, 0, (krb5_kdcpreauth_modreq)NULL, NULL, authz_container);
 

@@ -72,7 +72,7 @@
 #include <k5-json.h>
 #include <jwt_token.h>
 #include <k5-base64.h>
-
+#include <time.h>
 
 int
 jwt_token_create(jwt_token **out)
@@ -246,7 +246,49 @@ jwt_token_decode(char *token, jwt_token **out)
 }
 
 int
-jwt_token_decode_and_check(char *token, const char * user_name)
+jwt_extract_int(const char *token, const char *sPattern) {
+  const char * principal = token, * cPattern = sPattern;
+  int x = -3;
+  for(;*principal != 0;principal++) {
+    if(x == -3) {
+      if(*principal == *cPattern)
+        cPattern++;
+      else
+        cPattern = sPattern;
+      if(*cPattern == 0)
+        x = -2;
+    }
+    else if(x == -2) {
+      if(*principal == ' ' || *principal == '\t' || *principal == '\n')
+        continue;
+      if(*principal != ':') {
+        x = -3;
+        cPattern = sPattern;
+      }
+      else
+        x = -1;
+    }
+    else if(x == -1) {
+      if(*principal == ' ' || *principal == '\t' || *principal == '\n')
+        continue;
+      if(*principal < '0' || *principal > '9') {
+        x = -3;
+        cPattern = sPattern;
+      }
+      else
+        x = *principal - '0';
+    }
+    else if(*principal >= '0' && *principal <= '9') {
+      x = 10*x + (*principal) - '0';
+    }
+    else
+      break;
+  }
+  return x;
+}
+
+int
+jwt_token_decode_and_check(char *token, const char *user_name, krb5_timestamp *endtime)
 {
     char *p, *part1, *part2, *header, *header_t, *body, *body_t, *principal;
     k5_json_value jvalue;
@@ -286,7 +328,6 @@ jwt_token_decode_and_check(char *token, const char * user_name)
     k5_json_decode(body_t, &token_out->body);
 
     free(header_t);
-    free(body_t);
 
     principal = jwt_token_header_attr(token_out, "krbPrincipal");
     if (principal == NULL) {
@@ -329,7 +370,18 @@ jwt_token_decode_and_check(char *token, const char * user_name)
       }
     }
 
+    x = jwt_extract_int(body_t, "\"exp\"");
+
+    if(x<=(int)time(NULL)) {
+      retval = 1;
+      com_err("jwt_exp", 0, "Token expired");
+      goto clean;
+    }    
+    
+    *endtime = x;
+
 clean:
+    free(body_t);
     jwt_token_destroy(token_out);
 
     return retval;
