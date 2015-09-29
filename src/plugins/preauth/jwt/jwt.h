@@ -35,6 +35,18 @@
 #include <com_err.h>
 #include <jwt_token.h>
 
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+
+#define KRB5_JWT_PUBKEY_DIR "jwt_public_key"
+#define KRB5_JWT_CERT_MISSING_IGNORE "jwt_ignore_cert_missing"
+
+#define KRB5_CERT_MISSING_CODE 60
+#define KRB5_CERT_PARSE_FAILED 61
+#define KRB5_CERT_TOO_BIG 62
+
 /*
  * Client's plugin context
  */
@@ -73,6 +85,5 @@ struct _jwt_kdc_req_context {
     char *token;
 };
 typedef struct _jwt_kdc_req_context jwt_kdc_req_context;
-
 
 #endif /* JWT_H_ */

@@ -44,7 +44,7 @@ void jwt_token_destroy(jwt_token *token);
 
 int jwt_token_decode(char *token_str, jwt_token **out);
 
-int jwt_token_decode_and_check(char *token, const char * user_name, krb5_timestamp *endtime);
+int jwt_token_decode_and_check(char *token, const char * user_name, krb5_timestamp *endtime, void * rsa_pub);
 
 char* jwt_token_header_attr(jwt_token *token, const char *name);
 

@@ -73,6 +73,7 @@
 #include <jwt_token.h>
 #include <k5-base64.h>
 #include <time.h>
+#include "jwt.h"
 
 int
 jwt_token_create(jwt_token **out)
@@ -287,16 +288,28 @@ jwt_extract_int(const char *token, const char *sPattern) {
   return x;
 }
 
-int
-jwt_token_decode_and_check(char *token, const char *user_name, krb5_timestamp *endtime)
+void sha256(char *string, char outputBuffer[32])
 {
-    char *p, *part1, *part2, *header, *header_t, *body, *body_t, *principal;
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    int i = 0;
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, string, strlen(string));
+    SHA256_Final(hash, &sha256); 
+    strncpy(outputBuffer, hash, 32);
+}
+
+int
+jwt_token_decode_and_check(char *token, const char *user_name, krb5_timestamp *endtime, void * rsa_public)
+{
+    char *p, *part1, *part2, *part3, *header, *header_t, *body, *body_t, *signature, *principal;
     k5_json_value jvalue;
     jwt_token *token_out;
     size_t len_out = 0;
     int retval = 0;
     int x = 0;
- 
+    RSA * rsa = (RSA *)rsa_public;
+
     p = strchr(token, '.');
     if (p == NULL) {
         return 1;
@@ -311,6 +324,7 @@ jwt_token_decode_and_check(char *token, const char *user_name, krb5_timestamp *e
     if (p != NULL) {
         *p++ = 0;
     }
+    part3 = p;
 
     header = (char*)base64url_decode((const char*)part1, &len_out);
     header_t = (char *)malloc(len_out);
@@ -380,6 +394,26 @@ jwt_token_decode_and_check(char *token, const char *user_name, krb5_timestamp *e
     
     *endtime = x;
 
+    //Format part1 and part2
+    part1[strlen(part1)] = '.';
+    signature = (char*)base64url_decode((const char*)part3, &len_out);
+  
+    // If token is longer than sha256 hash result (32 bits) we have to hash it to expected lenght
+    if(strlen(part1)>32) {
+      part2 = malloc(32);
+      sha256(part1, part2);
+      x = RSA_verify(NID_sha256, part2, 32, signature, len_out, rsa);
+      free(part2);
+    } 
+    else
+      x = RSA_verify(NID_sha256, (unsigned char *)part1, strlen(part1), signature, len_out, rsa);
+
+    // 0 - failed, 1 - success
+    if(x != 1) {
+      retval = 1;
+      com_err("jwt_rsa", 0, "RSA PubKey validation failed");
+      goto clean;
+    }
 clean:
     free(body_t);
     jwt_token_destroy(token_out);

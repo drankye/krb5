@@ -36,6 +36,8 @@
 #include <errno.h>
 #include <ctype.h>
 
+static RSA * RSA_PUBLIC_KEY = NULL;
+
 static krb5_preauthtype jwt_pa_type_list[] =
   { KRB5_PADATA_JWT_REQUEST, 0 };
 
@@ -76,12 +78,10 @@ token_verify(krb5_context ctx, krb5_keyblock *armor_key,
     }
 
 
-    retval = jwt_token_decode_and_check(token->data, user_name, endtime);
+    retval = jwt_token_decode_and_check(token->data, user_name, endtime, RSA_PUBLIC_KEY);
     if (retval != 0) {
       retval = EINVAL;
     }
-
-    // todo: very the token according to the spec
 
     return retval;
 }
@@ -97,6 +97,7 @@ jwt_init(krb5_context context, krb5_kdcpreauth_moddata *moddata_out,
     if (retval)
         return retval;
     *moddata_out = (krb5_kdcpreauth_moddata)jwtctx;
+
 
     return 0;
 }
@@ -328,11 +329,110 @@ kdcpreauth_jwt_initvt(krb5_context context, int maj_ver, int min_ver,
                       krb5_plugin_vtable vtable)
 {
     krb5_kdcpreauth_vtable vt;
+    char *str;
+    FILE *F;
+    int size;
+    int retval=0;
+    int ignoreIfFailed = 0;
+    RSA * rsa = NULL;
+    BIO * bio = NULL;
 
     if (maj_ver != 1)
         return KRB5_PLUGIN_VER_NOTSUPP;
+    
+    com_err("jwt", 0, "Loading public key");
 
-    vt = (krb5_kdcpreauth_vtable)vtable;
+    if(profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                                  KRB5_JWT_CERT_MISSING_IGNORE, NULL, NULL,
+                                  &str)==0 && str!=NULL && str[0]=='t')
+      ignoreIfFailed = 1;
+    str = NULL;
+
+    if(profile_get_string(context->profile, KRB5_CONF_LIBDEFAULTS,
+                                  KRB5_JWT_PUBKEY_DIR, NULL, NULL,
+                                  &str)==0 && str!=NULL)
+    {
+      if(str[0]!='/' && str[0]!='\\') {
+        com_err("jwt", 0, "JWT configuration is wrong. 'jwt_public_key' is not absolute path");
+        retval = KRB5_CERT_MISSING_CODE;
+      }
+      else {
+        F = fopen(str, "r");
+        if(F==NULL) {
+          com_err("jwt", 0, "JWT configuration is wrong. Public key file doesnt exists");
+          retval = KRB5_CERT_MISSING_CODE;
+        }
+        else {
+          fseek(F, 0, SEEK_END);
+          size = ftell(F);
+          // Throw if file is bigger than 1mb
+          if(size>1024*1024) {
+            com_err("jwt", 0, "Public key file is too big");
+            fclose(F);
+            retval = KRB5_CERT_TOO_BIG;
+          }
+          else {
+            fseek(F, 0, SEEK_SET);
+      
+            str = malloc(size+1);
+            fread(str, size, 1, F);
+            fclose(F);
+            str[size] = 0;
+
+            // Validate RSA public key
+            
+            bio = BIO_new_mem_buf(str, -1);
+            if(bio == NULL) {
+              retval = KRB5_CERT_PARSE_FAILED;
+              com_err("jwt_bio", 0, "BIO PubKey validation failed");
+            }
+            else {
+
+              rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+
+              if(rsa == NULL) {
+                retval = KRB5_CERT_PARSE_FAILED;
+                com_err("jwt_rsa", 0, "RSA PubKey validation failed");
+              }
+              else {
+                RSA_PUBLIC_KEY = rsa;
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+      com_err("jwt", 0, "JWT configuration is wrong. Missing jwt_public_key");
+      retval = KRB5_CERT_MISSING_CODE;
+    } 
+
+    if(retval == KRB5_CERT_MISSING_CODE && ignoreIfFailed == 0) {
+      com_err("Exiting", 0, "Fix config.");
+      printf("Fix your config. Unable to find public key\n");
+      exit(KRB5_CERT_MISSING_CODE);
+    }
+    else if(retval != 0 && (retval != KRB5_CERT_MISSING_CODE || ignoreIfFailed == 0)) {
+      printf("Some error with kerberos");
+      switch(retval) {
+        case KRB5_CERT_MISSING_CODE:
+          printf("KDC can not find public key");
+          if(str == NULL) 
+            printf("%s is not specified.", KRB5_JWT_PUBKEY_DIR);
+          else
+            printf("Location: %s", str);
+          break;
+        case KRB5_CERT_TOO_BIG:
+          printf("Cert file is too big.");
+          break;
+        case KRB5_CERT_PARSE_FAILED:
+          printf("Cert validation failed");
+          break;
+      }
+      exit(retval);
+    }
+  
+    vt =(krb5_kdcpreauth_vtable)vtable;
     vt->name = "jwt";
     vt->pa_type_list = jwt_pa_type_list;
     vt->init = jwt_init;

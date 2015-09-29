@@ -9,8 +9,7 @@ RELDIR=../plugins/preauth/jwt
 # Depends on libk5crypto and libkrb5
 SHLIB_EXPDEPS = $(KRB5_BASE_DEPLIBS) $(SUPPORT_LIB)
 
-
-SHLIB_EXPLIBS= $(KRB5_BASE_LIBS)
+SHLIB_EXPLIBS= $(KRB5_BASE_LIBS) -lcrypto
 
 STLIBOBJS= \
 	jwt_srv.o \
