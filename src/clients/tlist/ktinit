@@ -2,56 +2,21 @@
 
 function usage() {
     echo "This tool uses token to authenticate to KDC and obtains tgt for you. "
-    echo "ktinit [-t token | -T token-cache-file] [-c kerb-ccache-file]"
+    echo "ktinit [-t token | -T token-cache-file] [-c kerb-ccache-file] [-P principal] [-W kinit and tlist directory]"
     echo "      when no token specified, ~/.tokenauth.token will be used by default"
     exit 1
-}
-
-function tinit() {
-    token="$1"
-    result_cc="$2"
-
-    tempOutput=`tlist $token`
-    if [ $? -ne 0 ]; then
-        echo "Failed to decode the token"
-        echo $tempOutput
-        exit 1
-    fi
-    principal=`echo $tempOutput | awk -F: '{print $2}'`
-    if [ X"$principal" = X ]; then
-        echo "Invalid token!"
-        exit 1
-    fi
-    echo "Will kinit with token for $principal"
-
-    armor_cc=/tmp/krb5cc_armor.$$
-    kinit -c $armor_cc -n
-    if [ $? != 0 ]; then
-        echo "Failed to obtain armor ticket"
-        exit 1
-    fi
-    
-    cc_opt=""
-    if [ X"$result_cc" != X ]; then
-	cc_opt="-c $result_cc"
-    fi
-
-    kinit -T $armor_cc $cc_opt -X token=$token $principal
-    if [ $? -ne 0 ]; then
-        echo "Failed to obtain tgt ticket with token"
-        rm -rf $armor_cc
-        exit 1
-    fi
-    
-    echo "Successfully obtained tgt in $result_cc cache file with token"
-    rm -rf $armor_cc
 }
 
 # Main
 
 token=""
 token_cache=""
+principal=""
+directory=""
 #result_cc="/tmp/krb5cc_tinit.$$"
+
+kinit="kinit"
+tlist="tlist"
 
 while [[ $# > 0 ]]; do
     key="$1"
@@ -66,10 +31,18 @@ while [[ $# > 0 ]]; do
 	    token_cache="$1"
 	    shift
 	    ;;
+        -P)
+            principal="$1"
+            shift
+            ;;
 	-c)
 	    result_cc="$1"
 	    shift
 	    ;;
+        -W)
+            directory="$1"
+            shift
+            ;;
 	-h)
 	    usage
 	    ;;
@@ -78,6 +51,11 @@ while [[ $# > 0 ]]; do
 	    ;;
     esac
 done
+
+if [[ X"$directory" != X ]]; then
+  kinit="$directory/kinit"
+  tlist="$directory/tlist"
+fi
 
 if [[ X"$token" != X &&  X"$token_cache" != X ]]; then
     echo "Either token or token-cache can be specified, not both"
@@ -93,10 +71,48 @@ if [ X"$token" = X ]; then
 	token=`cat ~/.tokenauth.token`
     fi
 fi
+
 if [ X"$token" = X ]; then
     echo "No token is available by default. Please specify your token either via -t or -T"
     usage
 fi
 
-tinit $token $result_cc
+if [ X"$principal" = X ]; then
+    tempOutput=`$tlist $token`
+    if [ $? -ne 0 ]; then
+        echo "Failed to decode the token"
+        echo $tempOutput
+        exit 1
+    fi
+    principal=`echo $tempOutput | awk -F: '{print $2}'`
+    if [ X"$principal" = X ]; then
+        echo "Invalid token!"
+        exit 1
+    fi
+fi
+
+echo "Will kinit with token for $principal"
+
+armor_cc=/tmp/krb5cc_armor.$$
+$kinit -c $armor_cc -n
+if [ $? != 0 ]; then
+    echo "Failed to obtain armor ticket"
+    exit 1
+fi
+
+cc_opt=""
+if [ X"$result_cc" != X ]; then
+    cc_opt="-c $result_cc"
+fi
+
+$kinit -T $armor_cc $cc_opt -X token=$token $principal
+if [ $? -ne 0 ]; then
+    echo "Failed to obtain tgt ticket with token"
+    rm -rf $armor_cc
+    exit 1
+fi
+
+echo "Successfully obtained tgt in $result_cc cache file with token"
+rm -rf $armor_cc
+
 exit 0
