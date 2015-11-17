@@ -67,23 +67,47 @@ kdc_context_new(krb5_context ctx, jwt_kdc_context **out)
 }
 
 static krb5_error_code
-token_verify(krb5_context ctx, krb5_keyblock *armor_key,
-             krb5_data *token, const char *config, const char *user_name, krb5_timestamp *endtime)
+token_verify(krb5_context ctx, jwt_token * token, const char * username, krb5_timestamp * endtime, const RSA * rsa_public)
 {
-    krb5_error_code retval = 0;
-    jwt_token *out_token;
+  krb5_error_code retval = 0;
 
-    if (armor_key == NULL || token == NULL) {
-        retval = EINVAL;
-    }
+  if (token == NULL) {
+    retval = EINVAL;
+    goto clean;
+  }
 
+  retval = jwt_token_structure_check(token);
+  if (retval != 0) {
+    retval = EINVAL;
+    goto clean;
+  }
+  
+  retval = jwt_token_decode(token);
+  if (retval != 0) {
+    retval = EINVAL;
+    goto clean;
+  }
+  
+  retval = jwt_token_validate_principal_name(token, username);
+  if (retval != 0) {
+    retval = EINVAL;
+    goto clean;
+  }
+  
+  retval = jwt_token_lifetime(token, endtime);
+  if (retval != 0) {
+    retval = EINVAL;
+    goto clean;
+  }
+  
+  retval = jwt_token_verify_signature(token, rsa_public);
+  if (retval != 0) {
+    retval = EINVAL;
+    goto clean;
+  }
 
-    retval = jwt_token_decode_and_check(token->data, user_name, endtime, RSA_PUBLIC_KEY);
-    if (retval != 0) {
-      retval = EINVAL;
-    }
-
-    return retval;
+clean:
+  return retval;
 }
 
 static krb5_error_code
@@ -214,10 +238,9 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
     krb5_authdata **authz_container = NULL;
     krb5_data *ad_if_relevant;
     krb5_timestamp endtime;
+    jwt_token * token;
     char *user_name;
-    //char *config;
-
-    /* Get the FAST armor key. */
+    
     armor_key = cb->fast_armor(context, rock);
     if (armor_key == NULL) {
         retval = KRB5KDC_ERR_PREAUTH_FAILED;
@@ -225,7 +248,6 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
         goto error;
     }
 
-    /* Decode the request. */
     d = make_data(pa->contents, pa->length);
     retval = decode_krb5_pa_jwt_req(&d, &req);
     if (retval != 0) {
@@ -233,20 +255,19 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
         goto error;
     }
 
-    /* Get the principal's JWT configuration string. */
-    /*
-    retval = cb->get_string(context, rock, "jwt", &config);
-    if (retval == 0 && config == NULL)
-        retval = KRB5_PREAUTH_FAILED;
-    if (retval != 0) {
+    // Prepare check
+    if (jwt_token_create(&token, req->token.data, req->token.length) != 0) {
+        com_err("jwt", retval, "Unable to verify the token");
         goto error;
-    }*/
-
+    }
     user_name = (char *)malloc(request->client->data->length + 1);
     strncpy(user_name, request->client->data->data, request->client->data->length);
     user_name[request->client->data->length] = '\0';
-	/* Verify the token. */
-    retval = token_verify(context, armor_key, &req->token, NULL, user_name, &endtime);
+    
+    retval = token_verify(context, token, user_name, &endtime, RSA_PUBLIC_KEY);
+    
+    // Clean after check
+    jwt_token_destroy(token);
     free(user_name);
     if (retval != 0) {
         com_err("jwt", retval, "Unable to verify the token");
@@ -285,8 +306,6 @@ jwt_verify(krb5_context context, krb5_data *req_pkt, krb5_kdc_req *request,
 
     (*respond)(arg, 0, (krb5_kdcpreauth_modreq)NULL, NULL, authz_container);
 
-
-    //cb->free_string(context, rock, config);
     k5_free_pa_jwt_req(context, req);
     return;
 

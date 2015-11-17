@@ -32,19 +32,27 @@
 #include <k5-int.h>
 #include <com_err.h>
 
-struct jwt_token_st {
-    k5_json_object header;
-    k5_json_object body;
-};
-typedef struct jwt_token_st jwt_token;
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
 
-int jwt_token_create(jwt_token **out);
+typedef struct jwt_token_st {
+    char * data;
+    char * head, * payload, * signature;
+    char * head_d, * payload_d;
+} jwt_token;
+
+int jwt_token_create(jwt_token **out, char * token, int size);
 
 void jwt_token_destroy(jwt_token *token);
 
-int jwt_token_decode(char *token_str, jwt_token **out);
-
-int jwt_token_decode_and_check(char *token, const char * user_name, krb5_timestamp *endtime, void * rsa_pub);
+int jwt_token_structure_check(jwt_token * token);
+int jwt_token_decode(jwt_token * token);
+int jwt_token_validate_principal_name(jwt_token * token, const char * user_name);
+int jwt_token_lifetime(jwt_token * token, krb5_timestamp * endtime);
+int jwt_token_verify_signature(jwt_token * token, const RSA * rsa_public);
+char * jwt_token_get_name(jwt_token * token);
 
 char* jwt_token_header_attr(jwt_token *token, const char *name);
 

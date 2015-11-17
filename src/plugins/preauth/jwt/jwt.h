@@ -35,11 +35,6 @@
 #include <com_err.h>
 #include <jwt_token.h>
 
-#include <openssl/bio.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
-#include <openssl/sha.h>
-
 #define KRB5_JWT_PUBKEY_DIR "jwt_public_key"
 #define KRB5_JWT_CERT_MISSING_IGNORE "jwt_ignore_cert_missing"
 
