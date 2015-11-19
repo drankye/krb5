@@ -107,7 +107,7 @@ make_request(krb5_context ctx, jwt_context *jwtctx, krb5_pa_jwt_req **out_req)
         goto error;
     
     req->token.data = strdup(jwtctx->token);
-    req->token.length = strlen(jwtctx->token);
+    req->token.length = strlen(jwtctx->token) + 1;
 
     *out_req = req;
     return 0;
@@ -236,28 +236,49 @@ jwt_client_request_fini(krb5_context context, krb5_clpreauth_moddata moddata,
     free(modreq);
 }
 
+int jwt_token_validate(jwt_token * token) {
+  int retval = 0;
+
+  retval = jwt_token_structure_check(token);
+  if (retval != 0) {
+    goto clean;
+  }
+  
+  retval = jwt_token_decode(token);
+  if (retval != 0) {
+    goto clean;
+  }
+
+clean:
+  return retval;
+}
+
 static krb5_error_code
 handle_gic_opt(krb5_context context,
                jwt_context *jwtctx,
                const char *attr,
                const char *value)
 {
-    char *token = NULL;
-    jwt_token *out_token;
+    jwt_token * token;
     int ret = 0;
-
     if (strcmp(attr, "token") == 0) {
-    	token = strdup(value);
-        ret = jwt_token_decode(token, &out_token);
+      if (jwt_token_create(&token, value, strlen(value)) != 0) {
+        jwtctx->token = NULL;
+        jwtctx->vendor = NULL;
+        ret = 1;
+        goto clean;
+      }
+      ret = jwt_token_validate(token);
+      jwt_token_destroy(token);
     	if (ret == 0) {
-            jwtctx->token = token;
+            jwtctx->token = strdup(value);
             jwtctx->vendor = strdup("jwt");
     	} else {
             jwtctx->token = NULL;
             jwtctx->vendor = NULL;
     	}
     }
-
+clean:
     return ret;
 }
 

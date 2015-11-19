@@ -765,6 +765,8 @@ krb5_db2_get_principal(krb5_context context, krb5_const_principal searchfor,
     DBT     key, contents;
     krb5_data keydata, contdata;
     int     dbret;
+    char * defprinc;
+    int defsize;
 
     *entry = NULL;
     if (!inited(context))
@@ -785,6 +787,25 @@ krb5_db2_get_principal(krb5_context context, krb5_const_principal searchfor,
 
     db = dbc->db;
     dbret = (*db->get)(db, &key, &contents, 0);
+    if(dbret==1) {
+      defprinc = keydata.data;
+      for(defsize=0;defsize<keydata.length;defsize++) {
+        if(*defprinc=='@')
+          break;
+        if(*defprinc=='/')
+          defsize = keydata.length;
+        defprinc++;
+      }
+      if(defsize < keydata.length) {
+        defsize = key.size + 11 - defsize;
+        key.data = (char*)malloc(defsize);
+        strncpy(key.data, "default_jwt", 11);
+        strncpy((char *)key.data + 11, defprinc, strlen(defprinc));
+        key.size = defsize;
+
+        dbret = (*db->get)(db, &key, &contents, 0);
+      }
+    }
     retval = errno;
     krb5_free_data_contents(context, &keydata);
     switch (dbret) {

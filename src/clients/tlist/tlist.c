@@ -66,26 +66,57 @@ static void usage()
     exit(1);
 }
 
+int jwt_token_validate(jwt_token * token) {
+  int retval = 0;
+
+  retval = jwt_token_structure_check(token);
+  if (retval != 0) {
+    goto clean;
+  }
+  
+  retval = jwt_token_decode(token);
+  if (retval != 0) {
+    goto clean;
+  }
+
+clean:
+  return retval;
+}
 
 int
 main(argc, argv)
     int argc;
     char **argv;
 {
-    char *token = NULL;
-    jwt_token *out_token;
+    char *value = NULL;
+    jwt_token *token;
     int ret;
 
     setlocale(LC_ALL, "");
     progname = GET_PROGNAME(argv[0]);
 
     if (argc > 1) {
-        token = argv[1];
+        value = argv[1];
     } else {
         usage();
     }
 
-    ret = jwt_token_decode(token, &out_token);
+    if (jwt_token_create(&token, value, strlen(value)) != 0) {
+      return 1;
+    }
+    ret = jwt_token_validate(token);
+    
+    if (ret == 0) {
+      value = jwt_token_get_name(token);
+    
+      if (value == NULL) {
+        printf("Principal error\n");
+        ret = 1;
+      }
+      else {
+        printf("krbPrincipal: %s\n", value);
+      }
+    }
     
     return ret;
 }
